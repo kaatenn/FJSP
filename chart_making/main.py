@@ -17,7 +17,7 @@ y_values = myArray
 font_properties = FontProperties(fname='Deng.ttf', size=12)
 
 # 绘制折线图
-plt.plot(x_values, y_values, marker='o', linestyle='-')
+plt.plot(x_values, y_values, linestyle='-')
 
 # 添加标题和标签
 plt.title('工作流程时长随迭代次数的变化', fontproperties=font_properties)

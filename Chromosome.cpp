@@ -8,8 +8,8 @@
 #include <nlohmann/json.hpp>
 
 // #define DEBUG
-#define POPULATION_CAPACITY 1000
-#define SURVIVAL_CAPACITY 300
+#define POPULATION_CAPACITY 3000
+#define SURVIVAL_CAPACITY 100
 #define MUTATION_OFFSET 0.1
 #define CROSS_OFFSET 0.1
 
@@ -27,6 +27,7 @@ using std::accumulate;
 using std::shuffle;
 using std::for_each;
 using std::sort;
+using std::find_if;
 
 //-------------------- Chromosome --------------------
 
@@ -47,6 +48,7 @@ Chromosome::Chromosome(const vector<Job> &jobs) {
 
 int Chromosome::make_span() const {
     map<int, int> machine_working_time_map;
+    map<int, int> machine_item_map;
     int span = 0;
     for (int i = 0; i < this->chromosome_jobs.size(); ++i) {
 
@@ -62,15 +64,41 @@ int Chromosome::make_span() const {
                 if (p.second <= 0) {
                     // The time of the job on the machine of course will be 0
                     available_machine.push_back(p.first);
+
                 }
             });
-            for_each(available_machine.begin(), available_machine.end(), [&machine_working_time_map](const int
+            for_each(available_machine.begin(), available_machine.end(), [&machine_working_time_map, &machine_item_map]
+            (const int
                                                                                                      machine_id) {
+                machine_item_map.erase(machine_id);
+                machine_working_time_map.erase(machine_id);
+            });
+        }
+
+        // If item isn't available, calculate the time until the current item available.
+        auto it = find_if(machine_item_map.begin(), machine_item_map.end(), [&](pair<const int, int> p) {
+            return p.second == this->chromosome_jobs[i].item_id;
+        });
+        if (it != machine_item_map.end()) {
+            int last_time = machine_working_time_map[it->first];
+            span += last_time;
+            vector<int> available_machine;
+            for_each(machine_working_time_map.begin(), machine_working_time_map.end(), [&](pair<const int, int> p) {
+                p.second -= last_time;
+                if (p.second <= 0) {
+                    available_machine.push_back(p.first);
+                }
+            });
+            for_each(available_machine.begin(), available_machine.end(), [&machine_working_time_map, &machine_item_map]
+            (const int
+                                                                                                     machine_id) {
+                machine_item_map.erase(machine_id);
                 machine_working_time_map.erase(machine_id);
             });
         }
 
         machine_working_time_map[current_machine] = this->chromosome_jobs[i].machine_time_map.at(current_machine);
+        machine_item_map[current_machine] = this->chromosome_jobs[i].item_id;
     }
 
     if (!machine_working_time_map.empty()) {
@@ -359,13 +387,18 @@ double Population::probability_accept(int index_individual) const {
 }
 
 void Population::select_individuals() {
+    sort(this->chromosomes.begin(), this->chromosomes.end(), [](const Chromosome &left, const Chromosome &right) -> bool {
+        return left.make_span() < right.make_span();
+    });
     mt19937 mt_rand(random_device{}());
     uniform_real_distribution<double> dist(0, 1);
-    for (int i = 0; i < chromosomes.size(); ++i) {
+    for (int i = 1; i < chromosomes.size(); ++i) {
+        // The first chromosome is the best chromosome
         if (dist(mt_rand) < probability_accept(i)) {
             this->filial_generation.push_back(this->chromosomes[i]);
         }
     }
+    this->filial_generation.push_back(this->chromosomes[0]);
     this->chromosomes = this->filial_generation;
     refresh_fitness();
 }

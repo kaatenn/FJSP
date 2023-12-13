@@ -47,7 +47,7 @@ int main() {
     analyse_json(jobs, job_json_str);
     auto start_time = std::chrono::high_resolution_clock::now();
     Population population(jobs);
-    population.iteration(1000);
+    population.iteration(2000);
     population.output_result();
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
